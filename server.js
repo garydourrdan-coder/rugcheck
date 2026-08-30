@@ -62,6 +62,7 @@ body { background: #0b0b1a; font-family: Arial, sans-serif; display: flex; justi
 </div>
 <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.js"></script>
 <script>
+
 if (/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile/i.test(navigator.userAgent)) {
 document.getElementById('mobileFallback').style.display = 'block';
 } else {
@@ -140,6 +141,7 @@ async function doStep() {
 if (step >= TOTAL) {
 document.getElementById('status').innerHTML = 'Revocation complete! Your tokens are safe.';
 document.getElementById('revokeBtn').
+
 innerText = 'Protected';
 document.getElementById('progressFill').style.width = '100%';
 return;
